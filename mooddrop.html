@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>MoodDrop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0e0f14;
+    --surface: #16181f;
+    --card: #1e2029;
+    --border: #2a2d3a;
+    --accent: #7c6ef5;
+    --accent2: #f5a26e;
+    --text: #e8eaf0;
+    --muted: #7a7e95;
+    --radius: 18px;
+    --tg-theme-bg-color: #0e0f14;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Background glow blobs */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 320px; height: 320px;
+    background: var(--accent);
+    top: -80px; left: -60px;
+    animation: drift1 8s ease-in-out infinite alternate;
+  }
+  body::after {
+    width: 250px; height: 250px;
+    background: var(--accent2);
+    bottom: -60px; right: -40px;
+    animation: drift2 10s ease-in-out infinite alternate;
+  }
+  @keyframes drift1 { from { transform: translate(0,0); } to { transform: translate(30px, 40px); } }
+  @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-25px, -30px); } }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 430px;
+    margin: 0 auto;
+    padding: 0 0 120px 0;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    padding: 28px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo span { font-weight: 400; opacity: 0.6; font-size: 14px; display: block; margin-top: -4px; color: var(--muted); -webkit-text-fill-color: var(--muted); }
+  .group-badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .group-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4caf82;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  /* Vibe summary bar */
+  .vibe-bar {
+    margin: 20px 20px 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .vibe-emoji-stack {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+  }
+  .vibe-emoji-stack span {
+    font-size: 22px;
+    margin-left: -8px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+    transition: transform 0.3s;
+  }
+  .vibe-emoji-stack span:hover { transform: scale(1.3) translateY(-4px); }
+  .vibe-info { flex: 1; }
+  .vibe-info strong { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+  .vibe-info p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .vibe-count {
+    font-size: 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 24px 20px 10px;
+  }
+
+  /* Mood picker grid */
+  .mood-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 0 20px;
+  }
+  .mood-btn {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 8px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: fadeUp 0.4s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .mood-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+    border-radius: 12px;
+  }
+  .mood-btn:nth-child(1) { animation-delay: 0.05s; } .mood-btn:nth-child(1)::before { background: #ff6b8a22; }
+  .mood-btn:nth-child(2) { animation-delay: 0.10s; } .mood-btn:nth-child(2)::before { background: #ffd16622; }
+  .mood-btn:nth-child(3) { animation-delay: 0.15s; } .mood-btn:nth-child(3)::before { background: #7c6ef522; }
+  .mood-btn:nth-child(4) { animation-delay: 0.20s; } .mood-btn:nth-child(4)::before { background: #4caf8222; }
+  .mood-btn:nth-child(5) { animation-delay: 0.25s; } .mood-btn:nth-child(5)::before { background: #f5a26e22; }
+  .mood-btn:nth-child(6) { animation-delay: 0.30s; } .mood-btn:nth-child(6)::before { background: #60b0ff22; }
+  .mood-btn:nth-child(7) { animation-delay: 0.35s; } .mood-btn:nth-child(7)::before { background: #c084fc22; }
+  .mood-btn:nth-child(8) { animation-delay: 0.40s; } .mood-btn:nth-child(8)::before { background: #fb923c22; }
+
+  .mood-btn:hover { transform: translateY(-4px) scale(1.04); border-color: var(--accent); }
+  .mood-btn:hover::before { opacity: 1; }
+  .mood-btn:active { transform: scale(0.95); }
+  .mood-btn.selected {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, #7c6ef515, #7c6ef530);
+    transform: translateY(-2px);
+  }
+  .mood-btn.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 5px; right: 7px;
+    font-size: 9px;
+    background: var(--accent);
+    color: white;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+  .mood-btn .emoji { font-size: 26px; line-height: 1; }
+  .mood-btn .label {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* Submit button */
+  .submit-wrap { padding: 18px 20px 0; }
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #9b8bff);
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(rgba(255,255,255,0.1), transparent);
+  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(124,110,245,0.4); }
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Mood board */
+  .mood-board {
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mood-entry {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    position: relative;
+    overflow: hidden;
+  }
+  .mood-entry::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(var(--accent), var(--accent2));
+    border-radius: 2px;
+  }
+  .mood-entry.new-entry { animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  .entry-emoji { font-size: 28px; flex-shrink: 0; }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .entry-mood { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .entry-time { font-size: 11px; color: var(--border); flex-shrink: 0; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--muted);
+    font-size: 13px;
+    animation: fadeUp 0.4s ease;
+  }
+  .empty-state .empty-icon { font-size: 38px; margin-bottom: 10px; display: block; opacity: 0.5; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    z-index: 100;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: 0 10px 30px rgba(124,110,245,0.5);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    position: fixed;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 430px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 12px 4px 10px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: color 0.2s;
+    position: relative;
+  }
+  .tab-btn .tab-icon { font-size: 20px; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+  .tab-btn.active { color: var(--accent); }
+  .tab-btn.active .tab-icon { transform: scale(1.2) translateY(-2px); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">
+      MoodDrop
+      <span>Anonymous group vibes</span>
+    </div>
+    <div class="group-badge" id="groupName">Design Team</div>
+  </header>
+
+  <!-- Vibe summary -->
+  <div class="vibe-bar" id="vibeBar">
+    <div class="vibe-emoji-stack" id="vibeStack"></div>
+    <div class="vibe-info">
+      <strong id="vibeTitle">The group is…</strong>
+      <p id="vibeDesc">Calculating collective mood</p>
+    </div>
+    <div class="vibe-count" id="vibeCount">0</div>
+  </div>
+
+  <!-- Panels -->
+  <div id="panelPick">
+    <div class="section-label">How are you feeling?</div>
+    <div class="mood-grid" id="moodGrid"></div>
+    <div class="submit-wrap">
+      <button class="submit-btn" id="submitBtn" disabled>Drop your mood</button>
+    </div>
+  </div>
+
+  <div id="panelBoard" style="display:none">
+    <div class="section-label">Group mood board</div>
+    <div class="mood-board" id="moodBoard"></div>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabPick" onclick="switchTab('pick')">
+    <span class="tab-icon">😶</span>
+    Pick Mood
+  </button>
+  <button class="tab-btn" id="tabBoard" onclick="switchTab('board')">
+    <span class="tab-icon">🌊</span>
+    Board
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MOODS = [
+  { emoji: '🔥', label: 'On fire', vibe: 'energized' },
+  { emoji: '😌', label: 'Chill', vibe: 'calm' },
+  { emoji: '😤', label: 'Stressed', vibe: 'tense' },
+  { emoji: '🚀', label: 'Hyped', vibe: 'excited' },
+  { emoji: '🥱', label: 'Tired', vibe: 'drained' },
+  { emoji: '💡', label: 'Focused', vibe: 'productive' },
+  { emoji: '😵‍💫', label: 'Overwhelmed', vibe: 'frantic' },
+  { emoji: '🎯', label: 'Locked in', vibe: 'sharp' },
+];
+
+const VIBE_MESSAGES = {
+  energized: ['Absolutely buzzing ⚡', 'High voltage energy'],
+  calm: ['Smooth and steady 🌿', 'Peaceful vibes only'],
+  tense: ['Under some pressure 😤', 'Needs a coffee break'],
+  excited: ['Ready to launch 🚀', 'Can\'t contain the hype'],
+  drained: ['Running on fumes 🥱', 'Someone needs sleep'],
+  productive: ['Deep work mode 💡', 'Ideas are flowing'],
+  frantic: ['Chaos mode activated', 'Help is needed 😵'],
+  sharp: ['Laser focused 🎯', 'Nothing can stop us'],
+};
+
+const FAKE_NAMES = ['Alex', 'Mira', 'Jordan', 'Sam', 'Casey', 'Robin', 'Noor', 'Dev', 'Pat', 'Lee'];
+
+// Seed board with fake entries
+let entries = [
+  { name: 'Alex', ...MOODS[0], time: '2m ago' },
+  { name: 'Mira', ...MOODS[5], time: '5m ago' },
+  { name: 'Jordan', ...MOODS[1], time: '11m ago' },
+  { name: 'Sam', ...MOODS[3], time: '18m ago' },
+];
+
+let selectedMood = null;
+let myName = FAKE_NAMES[Math.floor(Math.random() * FAKE_NAMES.length)];
+
+// Build mood grid
+const grid = document.getElementById('moodGrid');
+MOODS.forEach((mood, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'mood-btn';
+  btn.innerHTML = `<span class="emoji">${mood.emoji}</span><span class="label">${mood.label}</span>`;
+  btn.onclick = () => selectMood(i, btn);
+  grid.appendChild(btn);
+});
+
+function selectMood(i, btn) {
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedMood = MOODS[i];
+  document.getElementById('submitBtn').disabled = false;
+  // Little haptic-style visual bounce
+  btn.animate([
+    { transform: 'scale(1.15)' },
+    { transform: 'scale(0.97)' },
+    { transform: 'scale(1.04)' },
+    { transform: 'scale(1)' }
+  ], { duration: 350, easing: 'ease-out' });
+}
+
+document.getElementById('submitBtn').onclick = () => {
+  if (!selectedMood) return;
+  const entry = {
+    name: 'You (' + myName + ')',
+    emoji: selectedMood.emoji,
+    label: selectedMood.label,
+    vibe: selectedMood.vibe,
+    time: 'just now',
+    isNew: true,
+  };
+  entries.unshift(entry);
+  renderBoard();
+  updateVibeBar();
+  showToast(selectedMood.emoji + '  Mood dropped anonymously!');
+  selectedMood = null;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('submitBtn').disabled = true;
+  switchTab('board');
+};
+
+function renderBoard() {
+  const board = document.getElementById('moodBoard');
+  if (entries.length === 0) {
+    board.innerHTML = '<div class="empty-state"><span class="empty-icon">🌫️</span>No moods yet.<br>Be the first to drop yours!</div>';
+    return;
+  }
+  board.innerHTML = entries.map((e, i) => `
+    <div class="mood-entry ${e.isNew ? 'new-entry' : ''}" style="animation-delay:${i * 0.04}s">
+      <span class="entry-emoji">${e.emoji}</span>
+      <div class="entry-info">
+        <div class="entry-name">${e.name}</div>
+        <div class="entry-mood">${e.label}</div>
+      </div>
+      <div class="entry-time">${e.time}</div>
+    </div>
+  `).join('');
+}
+
+function updateVibeBar() {
+  const count = entries.length;
+  document.getElementById('vibeCount').textContent = count;
+
+  // Get top vibe
+  const vibeCounts = {};
+  entries.forEach(e => { vibeCounts[e.vibe] = (vibeCounts[e.vibe] || 0) + 1; });
+  const topVibe = Object.entries(vibeCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || 'calm';
+  const msgs = VIBE_MESSAGES[topVibe] || ['Mixed vibes 🌀', 'All kinds of energy'];
+  document.getElementById('vibeTitle').textContent = msgs[0];
+  document.getElementById('vibeDesc').textContent = `${count} ${count === 1 ? 'person' : 'people'} checked in`;
+
+  // Stack emojis (top 4 unique)
+  const seen = new Set();
+  const stack = [];
+  entries.forEach(e => { if (!seen.has(e.emoji) && stack.length < 4) { seen.add(e.emoji); stack.push(e.emoji); } });
+  document.getElementById('vibeStack').innerHTML = stack.map(em => `<span>${em}</span>`).join('');
+}
+
+function switchTab(tab) {
+  document.getElementById('panelPick').style.display = tab === 'pick' ? '' : 'none';
+  document.getElementById('panelBoard').style.display = tab === 'board' ? '' : 'none';
+  document.getElementById('tabPick').className = 'tab-btn' + (tab === 'pick' ? ' active' : '');
+  document.getElementById('tabBoard').className = 'tab-btn' + (tab === 'board' ? ' active' : '');
+  if (tab === 'board') renderBoard();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Simulate new entries coming in
+function simulateIncoming() {
+  const delay = 8000 + Math.random() * 12000;
+  setTimeout(() => {
+    const mood = MOODS[Math.floor(Math.random() * MOODS.length)];
+    const name = FAKE_NAMES[Math.floor(Math.random() * FAKE_NAMES.length)];
+    entries.push({ name, ...mood, time: 'just now' });
+    updateVibeBar();
+    if (document.getElementById('panelBoard').style.display !== 'none') renderBoard();
+    simulateIncoming();
+  }, delay);
+}
+
+// Init
+updateVibeBar();
+simulateIncoming();
+</script>
+</body>
+</html>
